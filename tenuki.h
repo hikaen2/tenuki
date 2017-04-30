@@ -196,12 +196,6 @@ namespace tenuki {
   const std::string to_ki2(const position& p);
   const std::string to_string(const position& p);
 
-  /*
-   * misc.cpp
-   */
-  const std::vector<std::string> split(const std::string& input, const std::string& regexp);
-  const std::string join(const std::vector<std::string>& ss, const std::string& sep);
-  const std::string replace(const std::string& str, const std::string& from, const std::string& to);
 
   /*
    * move.cpp
