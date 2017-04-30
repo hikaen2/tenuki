@@ -117,7 +117,7 @@ namespace tenuki {
 
     // pick
     if (to != square::EMPTY) {
-      p.pieces_in_hand[(int)p.side_to_move][(int)type_of(to)]++;
+      p.pieces_in_hand[(int)p.side_to_move][(int)type_of(unpromote(to))]++;
       p.static_value += -score.at(to) + -score.at(unpromote(to));
     }
 
@@ -151,9 +151,9 @@ namespace tenuki {
       return false;
     }
     if (side_of(sq) == side::BLACK) {
-      return rank_to <= RANK3 && rank_from <= RANK3;
+      return rank_to <= RANK3 || rank_from <= RANK3;
     } else {
-      return rank_to >= RANK7 && rank_from >= RANK7;
+      return rank_to >= RANK7 || rank_from >= RANK7;
     }
   }
 

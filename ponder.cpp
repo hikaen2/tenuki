@@ -2,7 +2,7 @@
 
 namespace tenuki {
 
-  using std::tuple;
+  using std::pair;
   using std::vector;
 
   namespace {
@@ -48,25 +48,26 @@ namespace tenuki {
     /**
      * search
      */
-    const tuple<move, int> search(const position& p, int depth) {
+    const vector<pair<move, int>> search(const position& p, int depth) {
 
       static std::mt19937 gen;
       
-      vector<tuple<move, int>> scores;
+      vector<pair<move, int>> scores;
 
       vector<move> ms = legal_moves(p);
       for (auto&& m : ms) {
         int value = alphabeta(do_move(p, m), depth, std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
-        scores.push_back(std::make_tuple(m, value));
+        scores.push_back(std::make_pair(m, value));
       }
 
       std::shuffle(scores.begin(), scores.end(), gen);
       
       if (p.side_to_move == side::BLACK) {
-        return *std::max_element(scores.begin(), scores.end(), [](tuple<move, int>a, tuple<move, int> b){ return std::get<1>(a) < std::get<1>(b); });
+        std::stable_sort(scores.begin(), scores.end(), [](pair<move, int>a, pair<move, int> b){ return a.second > b.second; });
       } else {
-        return *std::min_element(scores.begin(), scores.end(), [](tuple<move, int>a, tuple<move, int> b){ return std::get<1>(a) < std::get<1>(b); });
+        std::stable_sort(scores.begin(), scores.end(), [](pair<move, int>a, pair<move, int> b){ return a.second < b.second; });
       }
+      return scores;
     }
 
   }
@@ -76,13 +77,17 @@ namespace tenuki {
    * ponder
    */
   const move ponder(const position& p) {
-    tuple<move, int> move;
+    vector<pair<move, int>> move;
     boost::timer t;
     for (int depth = 0; t.elapsed() < 1.0; depth++) {
       move = search(p, depth);
-      std::cerr << depth << " " << to_string(std::get<0>(move)) << "(" << std::get<1>(move) <<")\n";
+      std::cerr << depth << ": ";
+      for (int i = 0; i < move.size(); i++) {
+        std::cerr << " " << to_string(move[i].first) << "(" << move[i].second <<") ";
+      }
+      std::cerr << "\n";
     }
-    return std::get<0>(move);
+    return move[0].first;
   }
 
 }
