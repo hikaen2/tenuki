@@ -45,12 +45,14 @@ namespace tenuki {
     }
 
 
+    std::random_device seed_gen;
+    
     /**
      * search
      */
     const vector<pair<move, int>> search(const position& p, int depth) {
 
-      static std::mt19937 gen;
+      static std::mt19937 gen(seed_gen());
       
       vector<pair<move, int>> scores;
 
@@ -83,7 +85,7 @@ namespace tenuki {
       move = search(p, depth);
       std::cerr << depth << ": ";
       for (int i = 0; i < move.size(); i++) {
-        std::cerr << " " << to_string(move[i].first) << "(" << move[i].second <<") ";
+        std::cerr << to_string(move[i].first) << "(" << move[i].second <<") ";
       }
       std::cerr << "\n";
     }

@@ -30,7 +30,7 @@ namespace tenuki {
       {type::PROMOTED_ROOK,   "RY"},
     };
     assert(to_csa.count(m.t) > 0);
-    return std::to_string(m.file_from + 1) + std::to_string(m.rank_from + 1) + std::to_string(m.file_to + 1) + std::to_string(m.rank_to + 1) + to_csa.at(m.t);
+    return  (m.s == side::BLACK ? "+" : "-") + std::to_string(m.file_from + 1) + std::to_string(m.rank_from + 1) + std::to_string(m.file_to + 1) + std::to_string(m.rank_to + 1) + to_csa.at(m.t);
   }
 
 
