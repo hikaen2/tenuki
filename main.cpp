@@ -29,7 +29,7 @@ namespace {
 
   std::smatch wait_line(tcp::socket& socket, std::regex re) {
     std::smatch m;
-    while (!std::regex_search(read_line(socket), m, re));
+    for (string s = read_line(socket); !std::regex_search(s, m, re); s = read_line(socket));
     return m;
   }
 
