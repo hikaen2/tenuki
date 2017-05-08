@@ -1,6 +1,6 @@
 # tenukiについて
 tenuki（手抜き）は簡単なコンピュータ将棋エンジンです。
-CSAプロトコル(http://www.computer-shogi.org/protocol/)を話します。
+CSAプロトコル (http://www.computer-shogi.org/protocol/) を話します。
 
 ## ソース
 https://github.com/hikaen2/tenuki
