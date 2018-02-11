@@ -5,39 +5,36 @@ using namespace tenuki;
 using std::string;
 using std::vector;
 using std::map;
-using boost::asio::ip::address;
 using boost::asio::ip::tcp;
 
+boost::asio::io_service io_service;
+std::ofstream logfile;
 
 namespace {
 
   void write_line(tcp::socket& socket, const std::string& s) {
-    std::cout << "> " << s << "\n";
+    std::cout << ">" << s << "\n";
     boost::asio::write(socket, boost::asio::buffer(s + "\n"));
   }
 
-  boost::asio::streambuf sb;
   const std::string read_line(tcp::socket& socket) {
-    boost::asio::read_until(socket, sb, "\n");
-    std::istream is(&sb);
-    std::string s;
-    std::getline(is, s);
-    s.erase(s.find_last_not_of("\n\r") + 1);
-    std::cout << "< " << s << "\n";
-    return s;
+    static boost::asio::streambuf b;
+    boost::asio::read_until(socket, b, "\n");
+    std::istream is(&b);
+    std::string line;
+    std::getline(is, line);
+    std::cerr << line << "\n";
+    logfile << line << std::endl;
+    return line;
   }
 
-  std::smatch wait_line(tcp::socket& socket, std::regex re) {
+  std::smatch read_line_until(tcp::socket& socket, std::regex re) {
     std::smatch m;
-    for (string s = read_line(socket); !std::regex_search(s, m, re); s = read_line(socket));
+    for (std::string s = read_line(socket); !std::regex_search(s, m, re); s = read_line(socket));
     return m;
   }
 
 }
-
-
-boost::asio::io_service io_service;
-
 
 int main(int argc, char* argv[]) {
 
@@ -47,20 +44,23 @@ int main(int argc, char* argv[]) {
   }
 
   const string HOST = argv[1];
-  const int PORT = atoi(argv[2]);
+  const string PORT = argv[2];
   const string USERNAME = argv[3];
   const string PASSWORD = argv[4];
 
+  logfile.open("tenuki.log");
+
   std::cout << "Connecting to " << HOST << " port " << PORT << ".\n";
+  tcp::resolver resolver(io_service);
   tcp::socket socket(io_service);
-  socket.connect(tcp::endpoint(address::from_string(HOST), PORT));
+  boost::asio::connect(socket, resolver.resolve({HOST, PORT}));
 
   write_line(socket, "LOGIN " + USERNAME + " " + PASSWORD);
-  const side MYSIDE = wait_line(socket, std::regex("Your_Turn:(\\+|-)"))[1].str() == "+" ? side::BLACK : side::WHITE;
-  wait_line(socket, std::regex("END Game_Summary"));
+  const side MYSIDE = read_line_until(socket, std::regex("Your_Turn:(\\+|-)"))[1].str() == "+" ? side::BLACK : side::WHITE;
+  read_line_until(socket, std::regex("END Game_Summary"));
 
   write_line(socket, "AGREE");
-  wait_line(socket, std::regex("START"));
+  read_line_until(socket, std::regex("START"));
 
   position p = parse_position("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1");
   std::cerr << to_string(p) << "\n";
@@ -70,7 +70,20 @@ int main(int argc, char* argv[]) {
     if (p.side_to_move == MYSIDE) {
       write_line(socket, to_string(ponder(p)));
     }
-    move m = parse_move(read_line(socket));
+
+    move m;
+    for (bool retry = true; retry; ) {
+      try {
+        string line = read_line(socket);
+        if (line == "#LOSE" || line == "#WIN" || line == "#DRAW" || line == "#CENSORED") {
+          return 0;
+        }
+        m = parse_move(line);
+        retry = false;
+      } catch (...) {
+        retry = true;
+      }
+    }
     std::cerr << to_string(m) << "\n";
     p = do_move(p, m);
     std::cerr << to_string(p) << "\n";
