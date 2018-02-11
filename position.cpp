@@ -9,7 +9,7 @@ namespace tenuki {
 
   namespace {
 
-    const map<string, square> TO_SQUARE {
+    const map<string, square_t> TO_SQUARE {
       {"1",  square::EMPTY             },
       {"P",  square::B_PAWN            },
       {"L",  square::B_LANCE           },
@@ -41,7 +41,7 @@ namespace tenuki {
       {"+r", square::W_PROMOTED_ROOK   },
     };
 
-    const map<square, string> TO_SFEN {
+    const map<square_t, string> TO_SFEN {
       {square::EMPTY,             "1"},
       {square::B_PAWN,            "P"},
       {square::B_LANCE,           "L"},
@@ -73,7 +73,7 @@ namespace tenuki {
       {square::W_PROMOTED_ROOK,   "+r"},
     };
 
-    const map<square, string> TO_KI2 {
+    const map<square_t, string> TO_KI2 {
       {square::EMPTY,             " ・"},
       {square::B_PAWN,            " 歩"},
       {square::B_LANCE,           " 香"},
@@ -105,7 +105,7 @@ namespace tenuki {
       {square::W_PROMOTED_ROOK,   "v龍"},
     };
 
-    static const map<type, string> TO_HAND {
+    static const map<type_t, string> TO_HAND {
       {type::PAWN,   "歩"},
       {type::LANCE,  "香"},
       {type::KNIGHT, "桂"},
@@ -115,7 +115,7 @@ namespace tenuki {
       {type::GOLD,   "金"},
     };
 
-    static const map<string, type> TO_TYPE {
+    static const map<string, type_t> TO_TYPE {
       {"P", type::PAWN},
       {"L", type::LANCE},
       {"N", type::KNIGHT},
@@ -203,8 +203,8 @@ namespace tenuki {
     }
 
     // 持ち駒をパースする
-    for (int s = to_int(side::BLACK); s <= to_int(side::WHITE); s++) {
-      for (int t = to_int(type::PAWN); t <= to_int(type::KING); t++) {
+    for (side_t s = side::BLACK; s <= side::WHITE; s++) {
+      for (type_t t = type::PAWN; t <= type::KING; t++) {
         p.pieces_in_hand[s][t] = 0;
       }
     }
@@ -213,7 +213,7 @@ namespace tenuki {
       for (std::sregex_iterator it(pieces_in_hand.begin(), pieces_in_hand.end(), re), end; it != end; ++it) {
         const int num = (*it)[1].length() == 0 ? 1 : stoi((*it)[1].str());
         const string piece = (*it)[2].str();
-        p.pieces_in_hand[to_int(isupper(piece.at(0)) ? side::BLACK : side::WHITE)][to_int(TO_TYPE.at(piece))] += num;
+        p.pieces_in_hand[isupper(piece.at(0)) ? side::BLACK : side::WHITE][TO_TYPE.at(piece)] += num;
       }
     }
 
@@ -247,11 +247,11 @@ namespace tenuki {
   const string to_ki2(const position& p) {
 
     string hand[2];
-    for (int s = to_int(side::BLACK); s <= to_int(side::WHITE); s++) {
-      for (int t = to_int(type::PAWN); t <= to_int(type::GOLD); t++) {
+    for (side_t s = side::BLACK; s <= side::WHITE; s++) {
+      for (type_t t = type::PAWN; t <= type::GOLD; t++) {
         const int n = p.pieces_in_hand[s][t];
         if (n > 0) {
-          hand[s] += TO_HAND.at(static_cast<type>(t)) + (n > 1 ? TO_NUM.at(n) : "") + "　";
+          hand[s] += TO_HAND.at(t) + (n > 1 ? TO_NUM.at(n) : "") + "　";
         }
       }
     }

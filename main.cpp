@@ -56,7 +56,7 @@ int main(int argc, char* argv[]) {
   boost::asio::connect(socket, resolver.resolve({HOST, PORT}));
 
   write_line(socket, "LOGIN " + USERNAME + " " + PASSWORD);
-  const side MYSIDE = read_line_until(socket, std::regex("Your_Turn:(\\+|-)"))[1].str() == "+" ? side::BLACK : side::WHITE;
+  const side_t MYSIDE = read_line_until(socket, std::regex("Your_Turn:(\\+|-)"))[1].str() == "+" ? side::BLACK : side::WHITE;
   read_line_until(socket, std::regex("END Game_Summary"));
 
   write_line(socket, "AGREE");
