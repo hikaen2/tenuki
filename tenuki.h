@@ -4,7 +4,6 @@
 #include <cassert>
 #include <cstdint>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <map>
@@ -14,6 +13,7 @@
 #include <utility>
 #include <vector>
 #include <boost/algorithm/string.hpp>
+#include <boost/format.hpp>
 #include <boost/timer.hpp>
 
 using side_t = uint8_t;

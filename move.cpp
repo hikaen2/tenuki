@@ -27,13 +27,7 @@ namespace tenuki {
       {type::PROMOTED_ROOK,   "RY"},
     };
     assert(to_csa.count(m.t) > 0);
-
-    std::ostringstream oss;
-    oss << (m.s == side::BLACK ? "+" : "-");
-    oss << std::setfill('0') << std::right << std::setw(2) << (int)m.from;
-    oss << std::setfill('0') << std::right << std::setw(2) << (int)m.to;
-    oss << to_csa.at(m.t);
-    return oss.str();
+    return (boost::format("%s%02d%02d%s") % (m.s == side::BLACK ? "+" : "-") % (int)m.from % (int)m.to % to_csa.at(m.t)).str();
   }
 
 
