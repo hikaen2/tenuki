@@ -1,13 +1,10 @@
 #include "tenuki.h"
 
-
 using std::map;
 using std::string;
 using std::vector;
 
-
 namespace tenuki {
-
 
   /**
    * to_string(move)
@@ -30,7 +27,13 @@ namespace tenuki {
       {type::PROMOTED_ROOK,   "RY"},
     };
     assert(to_csa.count(m.t) > 0);
-    return  (m.s == side::BLACK ? "+" : "-") + std::to_string(m.file_from + 1) + std::to_string(m.rank_from + 1) + std::to_string(m.file_to + 1) + std::to_string(m.rank_to + 1) + to_csa.at(m.t);
+
+    std::ostringstream oss;
+    oss << (m.s == side::BLACK ? "+" : "-");
+    oss << std::setfill('0') << std::right << std::setw(2) << (int)m.from;
+    oss << std::setfill('0') << std::right << std::setw(2) << (int)m.to;
+    oss << to_csa.at(m.t);
+    return oss.str();
   }
 
 
@@ -56,17 +59,15 @@ namespace tenuki {
       {"RY", type::PROMOTED_ROOK},
     };
 
-    static std::regex re("(-|\\+)(\\d)(\\d)(\\d)(\\d)(\\w\\w)");
+    static std::regex re("(-|\\+)(\\d{2})(\\d{2})(\\w{2})");
     std::smatch match;
     std::regex_search(str, match, re);
     side_t si = (match[1] == "+") ? side::BLACK : side::WHITE;
-    int file_from = stoi(match[2]) - 1;
-    int rank_from = stoi(match[3]) - 1;
-    int file_to = stoi(match[4]) - 1;
-    int rank_to = stoi(match[5]) - 1;
-    string koma = match[6];
+    int from = stoi(match[2]);
+    int to = stoi(match[3]);
+    string koma = match[4];
 
-    move move{si, (int8_t)file_from, (int8_t)rank_from, (int8_t)file_to, (int8_t)rank_to, DIC.at(koma)};
+    move move{si, (int8_t)from, (int8_t)to, DIC.at(koma)};
     return move;
   }
 
@@ -107,26 +108,23 @@ namespace tenuki {
       {square::W_PROMOTED_ROOK,   -955},
     };
 
-    assert(FILE0 <= m.file_from && m.file_from <= FILE9);
-    assert(RANK0 <= m.rank_from && m.rank_from <= RANK9);
-    assert(FILE1 <= m.file_to && m.file_to <= FILE9);
-    assert(RANK1 <= m.rank_to && m.rank_to <= RANK9);
+    assert(0 <= m.from && m.from <= 99);
+    assert(11 <= m.to && m.to <= 99);
 
-    square_t& from = p.squares[m.file_from][m.rank_from];
-    square_t& to = p.squares[m.file_to][m.rank_to];
+    square_t& from = p.squares[m.from];
+    square_t& to = p.squares[m.to];
 
     // pick
     if (to != square::EMPTY) {
-      p.pieces_in_hand[(int)p.side_to_move][(int)type_of(unpromote(to))]++;
-      p.static_value += -score.at(to) + -score.at(unpromote(to));
+      p.pieces_in_hand[p.side_to_move][square::type_of(square::unpromote(to))]++;
+      p.static_value += -score.at(to) + -score.at(square::unpromote(to));
     }
 
-    to = (square_t)((p.side_to_move == side::BLACK ? 16 : 32) | (int)m.t);
+    to = (square_t)((p.side_to_move == side::BLACK ? square::B : square::W) | m.t);
     
-    if (m.file_from == FILE0) {
-      assert(m.rank_from == RANK0);
-      assert(p.pieces_in_hand[(int)p.side_to_move][(int)m.t] > 0);
-      p.pieces_in_hand[(int)p.side_to_move][(int)m.t]--;
+    if (m.from == 0) {
+      assert(p.pieces_in_hand[p.side_to_move][m.t] > 0);
+      p.pieces_in_hand[p.side_to_move][m.t]--;
     } else {
       p.static_value += -score.at(from) + score.at(to);
       from = square::EMPTY;
@@ -136,24 +134,14 @@ namespace tenuki {
   }
 
 
-  inline bool is_friend(square_t sq, side_t s) {
-    return sq != square::EMPTY && side_of(sq) == s;
-  }
-
-
-  inline bool is_enemy(square_t sq, side_t s) {
-    return sq != square::EMPTY && side_of(sq) != s;
-  }
-
-
   inline bool can_promote(square_t sq, int rank_to, int rank_from) {
-    if (type_of(sq) > type::ROOK) {
+    if (square::type_of(sq) > type::ROOK) {
       return false;
     }
-    if (side_of(sq) == side::BLACK) {
-      return rank_to <= RANK3 || rank_from <= RANK3;
+    if (square::is_black(sq)) {
+      return rank_to <= 3 || rank_from <= 3;
     } else {
-      return rank_to >= RANK7 || rank_from >= RANK7;
+      return rank_to >= 7 || rank_from >= 7;
     }
   }
 
@@ -163,21 +151,21 @@ namespace tenuki {
    */
   const std::vector<move> legal_moves(const position& p) {
 
-    const static vector<vector<vector<int>>> DIRECTIONS {
-      {{ 0, -1}},                                                                       //  0:PAWN
-      {{ 0, -8}},                                                                       //  1:LANCE
-      {{ 1, -2}, {-1, -2}},                                                             //  2:KNIGHT
-      {{ 1, -1}, { 0, -1}, {-1, -1}, { 1,  1}, {-1,  1}},                               //  3:SILVER
-      {{ 8,  8}, {-8,  8}, { 8, -8}, {-8, -8}},                                         //  4:BISHOP
-      {{ 0,  8}, { 8,  0}, { 0, -8}, {-8,  0}},                                         //  5:ROOK
-      {{ 1, -1}, { 0, -1}, {-1, -1}, { 1,  0}, {-1,  0}, { 0,  1}},                     //  6:GOLD
-      {{ 1, -1}, { 0, -1}, {-1, -1}, { 1,  0}, {-1,  0}, { 1,  1}, { 0,  1}, {-1,  1}}, //  7:KING
-      {{ 1, -1}, { 0, -1}, {-1, -1}, { 1,  0}, {-1,  0}, { 0,  1}},                     //  8:PROMOTED_PAWN
-      {{ 1, -1}, { 0, -1}, {-1, -1}, { 1,  0}, {-1,  0}, { 0,  1}},                     //  9:PROMOTED_LANCE
-      {{ 1, -1}, { 0, -1}, {-1, -1}, { 1,  0}, {-1,  0}, { 0,  1}},                     // 10:PROMOTED_KNIGHT
-      {{ 1, -1}, { 0, -1}, {-1, -1}, { 1,  0}, {-1,  0}, { 0,  1}},                     // 11:PROMOTED_SILVER
-      {{ 8,  8}, {-8,  8}, { 8, -8}, {-8, -8}, { 0,  1}, { 1,  0}, { 0, -1}, {-1,  0}}, // 12:PROMOTED_BISHOP
-      {{ 0,  8}, { 8,  0}, { 0, -8}, {-8,  0}, { 1,  1}, {-1,  1}, { 1, -1}, {-1, -1}}, // 13:PROMOTED_ROOK
+    const static vector<vector<dir_t>> DIRECTIONS {
+      { dir::N },                                                                     //  0:PAWN
+      { dir::FN },                                                                    //  1:LANCE
+      { dir::NNE, dir::NNW },                                                         //  2:KNIGHT
+      { dir::N,   dir::NE,  dir::NW,  dir::SE,  dir::SW },                            //  3:SILVER
+      { dir::FNE, dir::FNW, dir::FSE, dir::FSW },                                     //  4:BISHOP
+      { dir::FN,  dir::FE,  dir::FW,  dir::FS },                                      //  5:ROOK
+      { dir::N,   dir::NE,  dir::NW,  dir::E,   dir::W,  dir::S },                    //  6:GOLD
+      { dir::N,   dir::NE,  dir::NW,  dir::E,   dir::W,  dir::S,  dir::SE, dir::SW }, //  7:KING
+      { dir::N,   dir::NE,  dir::NW,  dir::E,   dir::W,  dir::S },                    //  8:PROMOTED_PAWN
+      { dir::N,   dir::NE,  dir::NW,  dir::E,   dir::W,  dir::S },                    //  9:PROMOTED_LANCE
+      { dir::N,   dir::NE,  dir::NW,  dir::E,   dir::W,  dir::S },                    // 10:PROMOTED_KNIGHT
+      { dir::N,   dir::NE,  dir::NW,  dir::E,   dir::W,  dir::S },                    // 11:PROMOTED_SILVER
+      { dir::FNE, dir::FNW, dir::FSE, dir::FSW, dir::N,  dir::E,  dir::W,  dir::S },  // 12:PROMOTED_BISHOP
+      { dir::FN,  dir::FE,  dir::FW,  dir::FS,  dir::NE, dir::NW, dir::SE, dir::SW }, // 13:PROMOTED_ROOK
     };
 
     vector<move> moves;
@@ -186,80 +174,58 @@ namespace tenuki {
       return moves;
     }
 
+    bool fued[10] = {false, false, false, false, false, false, false, false, false, false}; // 0～9筋に味方の歩があるか
+
     // 盤上の駒を動かす
-    for (int file_from = FILE1; file_from <= FILE9; file_from++) {
-      for (int rank_from = RANK1; rank_from <= RANK9; rank_from++) {
-        const square_t& from = p.squares[file_from][rank_from];
-        if (!is_friend(from, p.side_to_move)) {
-          continue; // fromが味方の駒でなければcontinue
-        }
+    for (int from = 11; from <= 99; from++) {
+      const square_t& sq_from = p.squares[from];
+      if (!square::is_friend(sq_from, p.side_to_move)) {
+        continue; // fromが味方の駒でなければcontinue
+      }
 
-        const int RANK_MIN = (from == square::B_PAWN || from == square::B_LANCE) ? RANK2 : from == square::B_KNIGHT ? RANK3 : RANK1;
-        const int RANK_MAX = (from == square::W_PAWN || from == square::W_LANCE) ? RANK8 : from == square::W_KNIGHT ? RANK7 : RANK9;
+      fued[file_of(from)] |= (square::type_of(sq_from) == type::PAWN);
+      const int RANK_MIN = (sq_from == square::B_PAWN || sq_from == square::B_LANCE) ? 2 : sq_from == square::B_KNIGHT ? 3 : 1;
+      const int RANK_MAX = (sq_from == square::W_PAWN || sq_from == square::W_LANCE) ? 8 : sq_from == square::W_KNIGHT ? 7 : 9;
 
-        for (auto& v : DIRECTIONS[type_of(from)]) {
-          int dx = v[0];
-          int dy = p.side_to_move == side::BLACK ? v[1] : -v[1];
-          bool fly = false;
-          if (abs(dx) == 8 || abs(dy) == 8) {
-            dx /= 8;
-            dy /= 8;
-            fly = true;
+      for (dir_t d : DIRECTIONS[square::type_of(sq_from)]) {
+        int v = (p.side_to_move == side::BLACK ? dir::value(d) : -dir::value(d));
+        for (int to = from + v; square::is_empty(p.squares[to]) || square::is_enemy(p.squares[to], p.side_to_move);  to += v) {
+          square_t sq_to = p.squares[to];
+          if (can_promote(sq_from, rank_of(to), rank_of(from))) {
+            moves.push_back(move{p.side_to_move, (int8_t)from, (int8_t)to, type::promote(square::type_of(sq_from))});
           }
-          for (int file_to = file_from + dx, rank_to = rank_from + dy;  FILE1 <= file_to && file_to <= FILE9 && RANK1 <= rank_to && rank_to <= RANK9;  file_to += dx, rank_to += dy) {
-            square_t to = p.squares[file_to][rank_to];
-            if (is_friend(to, p.side_to_move)) {
-              break; // 移動先に味方の駒があればbreak
-            }
-            if (can_promote(from, rank_to, rank_from)) {
-              moves.push_back(move{p.side_to_move, (int8_t)file_from, (int8_t)rank_from, (int8_t)(file_to), (int8_t)(rank_to), promote(type_of(from))});
-            }
-            if (rank_to < RANK_MIN || RANK_MAX < rank_to) {
-              break;
-            }
-            moves.push_back(move{p.side_to_move, (int8_t)file_from, (int8_t)rank_from, (int8_t)(file_to), (int8_t)(rank_to), type_of(from)});
-            if (!fly) {
-              break; // 飛び駒でなければここでbreak
-            }
-            if (is_enemy(to, p.side_to_move)) {
-              break;
-            }
+          if (rank_of(to) < RANK_MIN || RANK_MAX < rank_of(to)) {
+            break;
+          }
+          moves.push_back(move{p.side_to_move, (int8_t)from, (int8_t)to, square::type_of(sq_from)});
+          if (!dir::is_fly(d) || square::is_enemy(sq_to, p.side_to_move)) {
+            break; // 飛び駒でなければここでbreak
           }
         }
+
       }
     }
 
     // 持ち駒を打つ
-    for (int file_to = FILE1; file_to <= FILE9; file_to++) { // 1筋～9筋
-
-      bool nifu = false; // この筋に味方の歩があるか
-      if (p.pieces_in_hand[p.side_to_move][type::PAWN] > 0) {
-        for (int rank_to = RANK1; rank_to <= RANK9; rank_to++) { // 1段目～9段目
-          nifu |= p.squares[file_to][rank_to] == (p.side_to_move == side::BLACK ? square::B_PAWN : square::W_PAWN);
-        }
+    for (int to = 11; to <= 99; to++) {
+      if (!square::is_empty(p.squares[to])) {
+        continue;
       }
 
-      for (int rank_to = RANK1; rank_to <= RANK9; rank_to++) { // 1段目～9段目
-        if (p.squares[file_to][rank_to] != square::EMPTY) {
+      for (type_t t = (fued[file_of(to)] ? type::LANCE : type::PAWN); t <= type::GOLD; t++) { // 歩,香,桂,銀,角,飛,金
+        if ((t == type::PAWN || t == type::LANCE) && (p.side_to_move == side::BLACK ? rank_of(to) == 1 : rank_of(to) == 9)) {
+          continue; // 歩,香は1段目（先手）/9段目（後手）に打てない
+        }
+        if (t == type::KNIGHT && (p.side_to_move == side::BLACK ? rank_of(to) <= 2 : rank_of(to) >= 8)) {
+          continue; // 桂は2段目より上（先手）/8段目より下（後手）に打てない
+        }
+        if (p.pieces_in_hand[p.side_to_move][t] == 0) {
           continue;
         }
-        for (type_t t = type::PAWN; t <= type::GOLD; t++) { // 歩,香,桂,銀,角,飛,金
-          if ((t == type::PAWN || t == type::LANCE) && (p.side_to_move == side::BLACK ? rank_to == RANK1 : rank_to == RANK9)) {
-            continue; // 歩,香は1段目（先手）/9段目（後手）に打てない
-          }
-          if (t == type::KNIGHT && (p.side_to_move == side::BLACK ? rank_to <= RANK2 : rank_to >= RANK8)) {
-            continue; // 桂は2段目より上（先手）/8段目より下（後手）に打てない
-          }
-          if (p.pieces_in_hand[p.side_to_move][t] == 0) {
-            continue;
-          }
-          if (t == type::PAWN && nifu) {
-            continue;
-          }
-          moves.push_back(move{p.side_to_move, -1, -1, (int8_t)file_to, (int8_t)rank_to, t});
-        }
+        moves.push_back(move{p.side_to_move, 0, (int8_t)to, t});
       }
     }
+
     return moves;
   }
 

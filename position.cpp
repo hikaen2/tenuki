@@ -1,5 +1,4 @@
 #include "tenuki.h"
-#include <regex>
 
 using std::map;
 using std::string;
@@ -194,11 +193,14 @@ namespace tenuki {
 
     position p;
     p.static_value = 0;
-    
+    for (int i = 0; i < 111; i++) {
+      p.squares[i] = square::WALL;
+    }
+
     p.side_to_move = side_to_move == "b" ? side::BLACK : side::WHITE;
     for (int rank = 0; rank <= 8; rank++) {
       for (int file = 0; file <= 8; file++) {
-        p.squares[file][rank] = TO_SQUARE.at(vv[file][rank]);
+        p.squares[address(file+1, rank+1)] = TO_SQUARE.at(vv[file][rank]);
       }
     }
 
@@ -226,10 +228,10 @@ namespace tenuki {
    */
   const string to_sfen(const position& p) {
     vector<string> lines;
-    for (int rank = 0; rank <= 8; rank++) {
+    for (int rank = 1; rank <= 9; rank++) {
       string line;
-      for (int file = 8; file >= 0; file--) {
-        line += TO_SFEN.at(p.squares[file][rank]);
+      for (int file = 9; file >= 1; file--) {
+        line += TO_SFEN.at(p.squares[address(file, rank)]);
       }
       lines.push_back(line);
     }
@@ -260,12 +262,12 @@ namespace tenuki {
     s += "後手の持駒：" + (hand[1].empty() ? "なし" : hand[1]) + "\n";
     s += "  ９ ８ ７ ６ ５ ４ ３ ２ １\n";
     s += "+---------------------------+\n";
-    for (int rank = 0; rank <= 8; rank++) {
+    for (int rank = 1; rank <= 9; rank++) {
       s += "|";
-      for (int file = 8; file >= 0; file--) {
-        s += TO_KI2.at(p.squares[file][rank]);
+      for (int file = 9; file >= 1; file--) {
+        s += TO_KI2.at(p.squares[address(file, rank)]);
       }
-      s += "|" + TO_NUM.at(rank + 1) + "\n";
+      s += "|" + TO_NUM.at(rank) + "\n";
     }
     s += "+---------------------------+\n";
     s += "先手の持駒：" + (hand[0].empty() ? "なし" : hand[0]) + "\n";

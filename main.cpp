@@ -7,10 +7,9 @@ using std::vector;
 using std::map;
 using boost::asio::ip::tcp;
 
-boost::asio::io_service io_service;
-std::ofstream logfile;
-
 namespace {
+  boost::asio::io_service io_service;
+  std::ofstream logfile;
 
   void write_line(tcp::socket& socket, const std::string& s) {
     std::cout << ">" << s << "\n";
@@ -33,7 +32,6 @@ namespace {
     for (std::string s = read_line(socket); !std::regex_search(s, m, re); s = read_line(socket));
     return m;
   }
-
 }
 
 int main(int argc, char* argv[]) {
