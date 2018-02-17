@@ -9,7 +9,8 @@ namespace tenuki {
   /**
    * to_string(move)
    */
-  const std::string to_string(const move& m) {
+  const std::string to_string(move_t m, const position& p) {
+
     static const map<type_t, string> to_csa {
       {type::PAWN,            "FU"},
       {type::LANCE,           "KY"},
@@ -27,16 +28,19 @@ namespace tenuki {
       {type::PROMOTED_ROOK,   "RY"},
     };
     assert(to_csa.count(m.t) > 0);
-    return (boost::format("%s%02d%02d%s") % (m.s == side::BLACK ? "+" : "-") % (int)m.from % (int)m.to % to_csa.at(m.t)).str();
+    int from = move::is_drop(m) ? 0 : move::from(m);
+    int to = move::to(m);
+    type_t t = move::is_drop(m) ? move::from(m) : move::is_promote(m) ? square::type_of(square::promote(p.squares[move::from(m)])) : square::type_of(p.squares[move::from(m)]);
+    return (boost::format("%s%02d%02d%s") % (p.side_to_move == side::BLACK ? "+" : "-") % from % to % to_csa.at(t)).str();
   }
 
 
   /**
    * parse_move
    */
-  const move parse_move(const std::string& str) {
+  move_t parse_move(const std::string& str, const position& p) {
 
-    static const map<string, type_t> DIC = {
+    static const map<string, type_t> dic {
       {"FU", type::PAWN},
       {"KY", type::LANCE},
       {"KE", type::KNIGHT},
@@ -56,20 +60,24 @@ namespace tenuki {
     static std::regex re("(-|\\+)(\\d{2})(\\d{2})(\\w{2})");
     std::smatch match;
     std::regex_search(str, match, re);
-    side_t si = (match[1] == "+") ? side::BLACK : side::WHITE;
     int from = stoi(match[2]);
     int to = stoi(match[3]);
-    string koma = match[4];
+    type_t t = dic.at(match[4]);
 
-    move move{si, (int8_t)from, (int8_t)to, DIC.at(koma)};
-    return move;
+    if (from == 0) {
+      return move::drop(t, to); // fromが0なら駒打ち
+    } else if (t != square::type_of(p.squares[from])) {
+      return move::promote(from, to); // 成る
+    } else {
+      return move::create(from, to);
+    }
   }
 
 
   /**
    * do_move
    */
-  const position do_move(position p, const move& m) {
+  const position do_move(position p, move_t m) {
 
     static const std::unordered_map<square_t, uint16_t> score = {
       {square::B_PAWN,              87},
@@ -102,48 +110,49 @@ namespace tenuki {
       {square::W_PROMOTED_ROOK,   -955},
     };
 
-    assert(0 <= m.from && m.from <= 99);
-    assert(11 <= m.to && m.to <= 99);
+    assert(0 <= move::from(m) &&  move::from(m) <= 99);
+    assert(11 <= move::to(m) && move::to(m) <= 99);
 
-    square_t& from = p.squares[m.from];
-    square_t& to = p.squares[m.to];
+    square_t& sq_from = p.squares[move::from(m)];
+    square_t& sq_to = p.squares[move::to(m)];
 
     // pick
-    if (to != square::EMPTY) {
-      p.pieces_in_hand[p.side_to_move][square::type_of(square::unpromote(to))]++;
-      p.static_value += -score.at(to) + -score.at(square::unpromote(to));
+    if (sq_to != square::EMPTY) {
+      p.pieces_in_hand[p.side_to_move][square::type_of(square::unpromote(sq_to))]++;
+      p.static_value += -score.at(sq_to) + -score.at(square::unpromote(sq_to));
     }
 
-    to = (square_t)((p.side_to_move == side::BLACK ? square::B : square::W) | m.t);
-
-    if (m.from == 0) {
-      assert(p.pieces_in_hand[p.side_to_move][m.t] > 0);
-      p.pieces_in_hand[p.side_to_move][m.t]--;
+    if (move::is_drop(m)) {
+      assert(p.pieces_in_hand[p.side_to_move][move::from(m)] > 0);
+      sq_to = ((p.side_to_move == side::BLACK ? square::B : square::W) | move::from(m));
+      p.pieces_in_hand[p.side_to_move][move::from(m)]--;
     } else {
-      p.static_value += -score.at(from) + score.at(to);
-      from = square::EMPTY;
+      sq_to = move::is_promote(m) ? square::promote(sq_from) : sq_from;
+      p.static_value += -score.at(sq_from) + score.at(sq_to);
+      sq_from = square::EMPTY;
     }
     p.side_to_move = (p.side_to_move == side::BLACK) ? side::WHITE : side::BLACK;
     return p;
   }
 
 
-  inline bool can_promote(square_t sq, int rank_to, int rank_from) {
-    if (square::type_of(sq) > type::ROOK) {
-      return false;
-    }
-    if (square::is_black(sq)) {
-      return rank_to <= 3 || rank_from <= 3;
-    } else {
-      return rank_to >= 7 || rank_from >= 7;
+  namespace {
+    inline bool can_promote(square_t sq, int rank_to, int rank_from) {
+      if (square::type_of(sq) > type::ROOK) {
+        return false;
+      }
+      if (square::is_black(sq)) {
+        return rank_to <= 3 || rank_from <= 3;
+      } else {
+        return rank_to >= 7 || rank_from >= 7;
+      }
     }
   }
-
 
   /**
    * legal_moves
    */
-  const std::vector<move> legal_moves(const position& p) {
+  const std::vector<move_t> legal_moves(const position& p) {
 
     const static vector<vector<dir_t>> DIRECTIONS {
       { dir::N },                                                                     //  0:PAWN
@@ -163,17 +172,16 @@ namespace tenuki {
     };
 
     const static int RANK_MIN[] {
-      // 歩,香,桂,銀,角,飛,金,王,と,成香,成桂,成銀,馬,龍,-,-,歩,香,桂,銀,角,飛,金,王,と,成香,成桂,成銀,馬,龍
+      // ▲歩,香,桂,銀,角,飛,金,王,と,成香,成桂,成銀,馬,龍,-,-,△歩,香,桂,銀,角,飛,金,王,と,成香,成桂,成銀,馬,龍
       2, 2, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     };
 
     const static int RANK_MAX[] {
-      // 歩,香,桂,銀,角,飛,金,王,と,成香,成桂,成銀,馬,龍,-,-,歩,香,桂,銀,角,飛,金,王,と,成香,成桂,成銀,馬,龍
+      // ▲歩,香,桂,銀,角,飛,金,王,と,成香,成桂,成銀,馬,龍,-,-,△歩,香,桂,銀,角,飛,金,王,と,成香,成桂,成銀,馬,龍
       9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 0, 0, 8, 8, 7, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
     };
 
-
-    vector<move> moves;
+    vector<move_t> moves;
     moves.reserve(256);
 
     if (p.pieces_in_hand[side::BLACK][type::KING] > 0 || p.pieces_in_hand[side::WHITE][type::KING] > 0) {
@@ -194,12 +202,12 @@ namespace tenuki {
         int v = (p.side_to_move == side::BLACK ? dir::value(d) : -dir::value(d));
         for (int to = from + v; square::is_empty(p.squares[to]) || square::is_enemy(p.squares[to], p.side_to_move);  to += v) {
           if (can_promote(sq_from, rank_of(to), rank_of(from))) {
-            moves.push_back(move{p.side_to_move, (int8_t)from, (int8_t)to, type::promote(square::type_of(sq_from))});
+            moves.push_back(move::promote(from, to));
           }
           if (rank_of(to) < RANK_MIN[sq_from & 0x1f] || RANK_MAX[sq_from & 0x1f] < rank_of(to)) {
             break;
           }
-          moves.push_back(move{p.side_to_move, (int8_t)from, (int8_t)to, square::type_of(sq_from)});
+          moves.push_back(move::create(from, to));
           if (!dir::is_fly(d) || square::is_enemy(p.squares[to], p.side_to_move)) {
             break; // 飛び駒でなければここでbreak
           }
@@ -216,7 +224,7 @@ namespace tenuki {
 
       for (type_t t = (fued[file_of(to)] ? type::LANCE : type::PAWN); t <= type::GOLD; t++) { // 歩,香,桂,銀,角,飛,金
         if (p.pieces_in_hand[p.side_to_move][t] > 0 && rank_of(to) >= RANK_MIN[p.side_to_move << 4 | t] && RANK_MAX[p.side_to_move << 4 | t] >= rank_of(to)) {
-          moves.push_back(move{p.side_to_move, 0, (int8_t)to, t});
+          moves.push_back(move::drop(t, to));
         }
       }
     }
@@ -224,5 +232,4 @@ namespace tenuki {
     return moves;
   }
 
-
-} // namespace tenuki
+}

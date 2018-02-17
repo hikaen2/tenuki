@@ -23,6 +23,7 @@ namespace tenuki {
   using type_t = uint8_t;
   using dir_t = int8_t;
   using square_t = uint8_t;
+  using move_t = uint16_t;
 
   /**
    * 手番
@@ -50,10 +51,6 @@ namespace tenuki {
     const type_t PROMOTED_SILVER = 11;
     const type_t PROMOTED_BISHOP = 12;
     const type_t PROMOTED_ROOK   = 13;
-
-    inline type_t promote(type_t t) {
-      return t | 8;
-    }
   }
 
   /**
@@ -127,8 +124,49 @@ namespace tenuki {
       return sq & 0b1111;
     }
 
+    inline type_t promote(square_t sq) {
+      return sq | 0b00001000;
+    }
+
     inline square_t unpromote(square_t sq) {
       return sq & 0b11110111;
+    }
+  }
+
+  /**
+   * 手
+   * 1xxxxxxx xxxxxxxx promote
+   * x1xxxxxx xxxxxxxx drop
+   * xx111111 1xxxxxxx from
+   * xxxxxxxx x1111111 to
+   */
+  namespace move {
+    inline move_t create(int from, int to) {
+      return from << 7 | to;
+    }
+
+    inline move_t promote(int from, int to) {
+      return from << 7 | to | 0b1000000000000000;
+    }
+
+    inline move_t drop(type_t t, int to) {
+      return t << 7 | to | 0b0100000000000000;
+    }
+
+    inline int from(move_t m) {
+      return (m >> 7) & 0b01111111;
+    }
+
+    inline int to(move_t m) {
+      return m & 0b01111111;
+    }
+
+    inline bool is_promote(move_t m) {
+      return (m & 0b1000000000000000) != 0;
+    }
+
+    inline bool is_drop(move_t m) {
+      return (m & 0b0100000000000000) != 0;
     }
   }
 
@@ -197,7 +235,7 @@ namespace tenuki {
   }
 
   inline int file_of(int address) {
-    static const int a[] = {
+    static const int16_t a[] = {
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
       1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
       2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
@@ -213,7 +251,7 @@ namespace tenuki {
   }
 
   inline int rank_of(int address) {
-    static const int a[] = {
+    static const int16_t a[] = {
       0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
       0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
       0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
@@ -228,20 +266,10 @@ namespace tenuki {
     return a[address];
   }
 
-  /**
-   * 手
-   */
-  struct move {
-    side_t s;
-    int8_t from;
-    int8_t to;
-    type_t t;
-  };
-
   /*
    * ponder.cpp
    */
-  const move ponder(const position& p);
+  move_t ponder(const position& p);
 
   /*
    * position.cpp
@@ -254,9 +282,9 @@ namespace tenuki {
   /*
    * move.cpp
    */
-  const std::string to_string(const move& m);
-  const position do_move(position p, const move& m);
-  const std::vector<move> legal_moves(const position& p);
-  const move parse_move(const std::string& str);
+  const std::string to_string(move_t m, const position& p);
+  move_t parse_move(const std::string& str, const position& p);
+  const position do_move(position p, move_t m);
+  const std::vector<move_t> legal_moves(const position& p);
 
-} // namespace tenuki
+}

@@ -66,23 +66,23 @@ int main(int argc, char* argv[]) {
   for (;;) {
 
     if (p.side_to_move == MYSIDE) {
-      write_line(socket, to_string(ponder(p)));
+      write_line(socket, to_string(ponder(p), p));
     }
 
-    move m;
+    move_t m;
     for (bool retry = true; retry; ) {
       try {
         string line = read_line(socket);
         if (line == "#LOSE" || line == "#WIN" || line == "#DRAW" || line == "#CENSORED") {
           return 0;
         }
-        m = parse_move(line);
+        m = parse_move(line, p);
         retry = false;
       } catch (...) {
         retry = true;
       }
     }
-    std::cerr << to_string(m) << "\n";
+    std::cerr << to_string(m, p) << "\n";
     p = do_move(p, m);
     std::cerr << to_string(p) << "\n";
 
