@@ -7,6 +7,7 @@
 #include <iostream>
 #include <limits>
 #include <map>
+#include <unordered_map>
 #include <random>
 #include <regex>
 #include <string>
@@ -16,12 +17,12 @@
 #include <boost/format.hpp>
 #include <boost/timer.hpp>
 
-using side_t = uint8_t;
-using type_t = uint8_t;
-using dir_t = int8_t;
-using square_t = uint8_t;
-
 namespace tenuki {
+
+  using side_t = uint8_t;
+  using type_t = uint8_t;
+  using dir_t = int8_t;
+  using square_t = uint8_t;
 
   /**
    * 手番
@@ -56,39 +57,12 @@ namespace tenuki {
   }
 
   /**
-   * Direction
-   */
-  namespace dir {
-    const dir_t N = -1 * 2;
-    const dir_t E = -10 * 2;
-    const dir_t W = +10 * 2;
-    const dir_t S = +1 * 2;
-    const dir_t NE = N + E;
-    const dir_t NW = N + W;
-    const dir_t SE = S + E;
-    const dir_t SW = S + W;
-    const dir_t NNE = N + N + E;
-    const dir_t NNW = N + N + W;
-    const dir_t FN = N | 1;
-    const dir_t FE = E | 1;
-    const dir_t FW = W | 1;
-    const dir_t FS = S | 1;
-    const dir_t FNE = NE | 1;
-    const dir_t FNW = NW | 1;
-    const dir_t FSE = SE | 1;
-    const dir_t FSW = SW | 1;
-
-    inline bool is_fly(dir_t d) {
-      return (d & 1) != 0;
-    }
-
-    inline int value(dir_t d) {
-      return d >> 1;
-    }
-  }
-
-  /**
-   * マス目
+   * 升
+   * 1xxxxxxx WALL
+   * x1xxxxxx EMPTY
+   * xx1xxxxx BLACK
+   * xxx1xxxx WHITE
+   * xxxx1111 type
    */
   namespace square {
     const square_t WALL              = 0b10000000;
@@ -156,28 +130,102 @@ namespace tenuki {
     inline square_t unpromote(square_t sq) {
       return sq & 0b11110111;
     }
-  };
+  }
 
   /**
    * 局面
    */
   struct position {
-    int16_t static_value;         ///< 静的評価値
-    side_t side_to_move;          ///< 手番
-    square_t squares[111];        ///< 10 * 11 + 1
+    /**
+     * squares[10 * 11 + 1]:
+     *  壁   9   8   7   6   5   4   3   2   1  壁
+     * -------------------------------------------+
+     * 100  90  80  70  60  50  40  30  20  10   0|壁
+     * 101  91  81  71  61  51  41  31  21  11   1|一
+     * 102  92  82  72  62  52  42  32  22  12   2|二
+     * 103  93  83  73  63  53  43  33  23  13   3|三
+     * 104  94  84  74  64  54  44  34  24  14   4|四
+     * 105  95  85  75  65  55  45  35  25  15   5|五
+     * 106  96  86  76  66  56  46  36  26  16   6|六
+     * 107  97  87  77  67  57  47  37  27  17   7|七
+     * 108  98  88  78  68  58  48  38  28  18   8|八
+     * 109  99  89  79  69  59  49  39  29  19   9|九
+     * 110
+     */
+    square_t squares[111];
     uint8_t pieces_in_hand[2][8]; ///< [side][type]
+    side_t side_to_move;          ///< 手番
+    int16_t static_value;         ///< 静的評価値
   };
+
+  /**
+   * Direction
+   * 1111111x value
+   * xxxxxxx1 fly
+   */
+  namespace dir {
+    const dir_t N =  -1 * 2; //  -1 << 1
+    const dir_t E = -10 * 2; // -10 << 1
+    const dir_t W = +10 * 2; // +10 << 1
+    const dir_t S =  +1 * 2; //  +1 << 1
+    const dir_t NE = N + E;
+    const dir_t NW = N + W;
+    const dir_t SE = S + E;
+    const dir_t SW = S + W;
+    const dir_t NNE = N + N + E;
+    const dir_t NNW = N + N + W;
+    const dir_t FN = N | 1;
+    const dir_t FE = E | 1;
+    const dir_t FW = W | 1;
+    const dir_t FS = S | 1;
+    const dir_t FNE = NE | 1;
+    const dir_t FNW = NW | 1;
+    const dir_t FSE = SE | 1;
+    const dir_t FSW = SW | 1;
+
+    inline bool is_fly(dir_t d) {
+      return (d & 1) != 0;
+    }
+
+    inline int value(dir_t d) {
+      return d >> 1;
+    }
+  }
 
   inline int address(int file, int rank) {
     return file * 10 + rank;
   }
 
   inline int file_of(int address) {
-    return address / 10;
+    static const int a[] = {
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+      3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+      4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+      5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+      6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+      7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+      8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+      9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+    };
+    return a[address];
   }
 
   inline int rank_of(int address) {
-    return address % 10;
+    static const int a[] = {
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+    };
+    return a[address];
   }
 
   /**

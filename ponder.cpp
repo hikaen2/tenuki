@@ -84,7 +84,7 @@ namespace tenuki {
     for (int depth = 0; t.elapsed() < 1.0; depth++) {
       move = search(p, depth);
       std::cerr << depth << ": ";
-      for (int i = 0; i < move.size(); i++) {
+      for (size_t i = 0; i < move.size(); i++) {
         std::cerr << to_string(move[i].first) << "(" << move[i].second <<") ";
       }
       std::cerr << "\n";
