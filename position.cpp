@@ -280,8 +280,8 @@ namespace tenuki {
     s += "static_value: " + std::to_string(p.static_value) + "\n";
     s += string("side_to_move: ") + (p.side_to_move == side::BLACK ? "side::BLACK" : "side::WHITE") + "\n";
     s += "sfen: " + to_sfen(p) + "\n";
-    s += "ki2:\n" + to_ki2(p) + "\n";
+    s += to_ki2(p) + "\n";
     return s;
   }
-  
+
 } // namespace
