@@ -51,7 +51,7 @@ namespace tenuki {
     /**
      * search
      */
-    move_t search(const position& p, int depth) {
+    move_t search(const position& p, int depth, move_t prev) {
 
       static std::mt19937 gen(seed_gen());
 
@@ -61,6 +61,9 @@ namespace tenuki {
         return result;
       }
       std::shuffle(ms.begin(), ms.end(), gen);
+      if (prev != 0) {
+        std::swap(ms[0], *std::find(ms.begin(), ms.end(), prev));
+      }
 
       int a = std::numeric_limits<int>::min();
       int b = std::numeric_limits<int>::max();
@@ -97,10 +100,10 @@ namespace tenuki {
    * ponder
    */
   move_t ponder(const position& p) {
-    move_t m;
+    move_t m = 0;
     boost::timer t;
     for (int depth = 1; t.elapsed() < 1.0; depth++) {
-      m = search(p, depth);
+      m = search(p, depth, m);
     }
     return m;
   }
