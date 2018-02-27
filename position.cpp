@@ -192,7 +192,6 @@ namespace tenuki {
     }
 
     position p;
-    p.static_value = 0;
     for (int i = 0; i < 111; i++) {
       p.squares[i] = square::WALL;
     }
@@ -242,6 +241,26 @@ namespace tenuki {
     return s;
   }
 
+  /**
+   * pの静的評価値を返す
+   */
+  int16_t static_value(const position& p) {
+
+    static const int16_t SCORE[] = {
+      // 歩,   香,   桂,   銀,   角,   飛,   金,    王,   と, 成香, 成桂, 成銀,   馬,   龍
+         87,  235,  254,  371,  571,  647,  447,  9999,  530,  482,  500,  489,  832,  955, 0, 0,
+        -87, -235, -254, -371, -571, -647, -447, -9999, -530, -482, -500, -489, -832, -955,
+    };
+
+    int16_t result = 0;
+    for (int i = 11; i <= 99; i++) {
+      result += SCORE[p.squares[i]];
+    }
+    for (int t = type::PAWN; t <= type::ROOK; t++) {
+      result += (p.pieces_in_hand[side::BLACK][t] - p.pieces_in_hand[side::WHITE][t]) * SCORE[t];
+    }
+    return result;
+  }
 
   /**
    * 局面をKI2形式の文字列にする
@@ -277,7 +296,7 @@ namespace tenuki {
 
   const string to_string(const position& p) {
     string s;
-    s += "static_value: " + std::to_string(p.static_value) + "\n";
+    s += "static_value: " + std::to_string(static_value(p)) + "\n";
     s += string("side_to_move: ") + (p.side_to_move == side::BLACK ? "side::BLACK" : "side::WHITE") + "\n";
     s += "sfen: " + to_sfen(p) + "\n";
     s += to_ki2(p) + "\n";

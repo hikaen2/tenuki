@@ -51,6 +51,8 @@ namespace tenuki {
     const type_t PROMOTED_SILVER = 11;
     const type_t PROMOTED_BISHOP = 12;
     const type_t PROMOTED_ROOK   = 13;
+    const type_t EMPTY           = 14;
+    const type_t WALL            = 15;
   }
 
   /**
@@ -62,24 +64,24 @@ namespace tenuki {
    * xxxx1111 type
    */
   namespace square {
-    const square_t WALL              = 0b10000000;
-    const square_t EMPTY             = 0b01000000;
-    const square_t B                 = 0b00100000;
     const square_t W                 = 0b00010000;
-    const square_t B_PAWN            = B | type::PAWN;
-    const square_t B_LANCE           = B | type::LANCE;
-    const square_t B_KNIGHT          = B | type::KNIGHT;
-    const square_t B_SILVER          = B | type::SILVER;
-    const square_t B_BISHOP          = B | type::BISHOP;
-    const square_t B_ROOK            = B | type::ROOK;
-    const square_t B_GOLD            = B | type::GOLD;
-    const square_t B_KING            = B | type::KING;
-    const square_t B_PROMOTED_PAWN   = B | type::PROMOTED_PAWN;
-    const square_t B_PROMOTED_LANCE  = B | type::PROMOTED_LANCE;
-    const square_t B_PROMOTED_KNIGHT = B | type::PROMOTED_KNIGHT;
-    const square_t B_PROMOTED_SILVER = B | type::PROMOTED_SILVER;
-    const square_t B_PROMOTED_BISHOP = B | type::PROMOTED_BISHOP;
-    const square_t B_PROMOTED_ROOK   = B | type::PROMOTED_ROOK;
+
+    const square_t B_PAWN            = type::PAWN;
+    const square_t B_LANCE           = type::LANCE;
+    const square_t B_KNIGHT          = type::KNIGHT;
+    const square_t B_SILVER          = type::SILVER;
+    const square_t B_BISHOP          = type::BISHOP;
+    const square_t B_ROOK            = type::ROOK;
+    const square_t B_GOLD            = type::GOLD;
+    const square_t B_KING            = type::KING;
+    const square_t B_PROMOTED_PAWN   = type::PROMOTED_PAWN;
+    const square_t B_PROMOTED_LANCE  = type::PROMOTED_LANCE;
+    const square_t B_PROMOTED_KNIGHT = type::PROMOTED_KNIGHT;
+    const square_t B_PROMOTED_SILVER = type::PROMOTED_SILVER;
+    const square_t B_PROMOTED_BISHOP = type::PROMOTED_BISHOP;
+    const square_t B_PROMOTED_ROOK   = type::PROMOTED_ROOK;
+    const square_t EMPTY             = type::EMPTY;
+    const square_t WALL              = type::WALL;
     const square_t W_PAWN            = W | type::PAWN;
     const square_t W_LANCE           = W | type::LANCE;
     const square_t W_KNIGHT          = W | type::KNIGHT;
@@ -95,28 +97,20 @@ namespace tenuki {
     const square_t W_PROMOTED_BISHOP = W | type::PROMOTED_BISHOP;
     const square_t W_PROMOTED_ROOK   = W | type::PROMOTED_ROOK;
 
-    inline bool is_wall(square_t sq) {
-      return sq == square::WALL;
-    }
-
-    inline bool is_empty(square_t sq) {
-      return sq == square::EMPTY;
-    }
-
     inline bool is_black(square_t sq) {
-      return (sq & square::B) != 0;
+      return sq <= square::B_PROMOTED_ROOK;
     }
 
     inline bool is_white(square_t sq) {
-      return (sq & square::W) != 0;
+      return sq >= square::W_PAWN;
     }
 
     inline bool is_friend(square_t sq, side_t s) {
-      return (sq & (s == side::BLACK ? square::B : square::W)) != 0;
+      return s == side::BLACK ? is_black(sq) : is_white(sq);
     }
 
     inline bool is_enemy(square_t sq, side_t s) {
-      return (sq & (s == side::BLACK ? square::W : square::B)) != 0;
+      return s == side::BLACK ? is_white(sq) : is_black(sq);
     }
 
     inline type_t type_of(square_t sq) {
@@ -145,11 +139,11 @@ namespace tenuki {
       return from << 7 | to;
     }
 
-    inline move_t promote(int from, int to) {
+    inline move_t create_promote(int from, int to) {
       return from << 7 | to | 0b1000000000000000;
     }
 
-    inline move_t drop(type_t t, int to) {
+    inline move_t create_drop(type_t t, int to) {
       return t << 7 | to | 0b0100000000000000;
     }
 
@@ -193,7 +187,6 @@ namespace tenuki {
     square_t squares[111];
     uint8_t pieces_in_hand[2][8]; ///< [side][type]
     side_t side_to_move;          ///< 手番
-    int16_t static_value;         ///< 静的評価値
   };
 
   /**
@@ -278,6 +271,7 @@ namespace tenuki {
   const std::string to_sfen(const position& p);
   const std::string to_ki2(const position& p);
   const std::string to_string(const position& p);
+  int16_t static_value(const position& p);
 
   /*
    * move.cpp

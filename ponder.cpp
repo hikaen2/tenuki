@@ -17,12 +17,12 @@ namespace tenuki {
     int alphabeta(const position& p, int depth, int a, int b) {
 
       if (depth <= 0) {
-        return p.static_value;
+        return static_value(p);
       }
 
       vector<move_t> ms = legal_moves(p);
       if (ms.size() == 0) {
-        return p.static_value;
+        return static_value(p);
       }
 
       if (p.side_to_move == side::BLACK) {
