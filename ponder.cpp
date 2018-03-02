@@ -20,15 +20,16 @@ namespace tenuki {
         return static_value(p);
       }
 
-      vector<move_t> ms = legal_moves(p);
-      if (ms.size() == 0) {
+      move_t moves[593];
+      int length = legal_moves(p, moves);
+      if (length == 0) {
         return static_value(p);
       }
 
       if (p.side_to_move == side::BLACK) {
         // maxノード
-        for (auto&& m : ms) {
-          a = std::max(a, alphabeta(do_move(p, m), depth - 1, a, b));
+        for (int i = 0; i < length; i++) {
+          a = std::max(a, alphabeta(do_move(p, moves[i]), depth - 1, a, b));
           if (a >= b) {
             return b; // bカット
           }
@@ -36,8 +37,8 @@ namespace tenuki {
         return a;
       } else {
         // minノード
-        for (auto&& m : ms) {
-          b = std::min(b, alphabeta(do_move(p, m), depth - 1, a, b));
+        for (int i = 0; i < length; i++) {
+          b = std::min(b, alphabeta(do_move(p, moves[i]), depth - 1, a, b));
           if (a >= b) {
             return a; // aカット
           }
@@ -56,13 +57,14 @@ namespace tenuki {
       static std::mt19937 gen(seed_gen());
 
       move_t result = 0;
-      vector<move_t> ms = legal_moves(p);
-      if (ms.size() == 0) {
+      move_t moves[593];
+      int length = legal_moves(p, moves);
+      if (length == 0) {
         return result;
       }
-      std::shuffle(ms.begin(), ms.end(), gen);
+      std::shuffle(&moves[0], &moves[length - 1], gen);
       if (prev != 0) {
-        std::swap(ms[0], *std::find(ms.begin(), ms.end(), prev));
+        std::swap(moves[0], *std::find(&moves[0], &moves[length - 1], prev));
       }
 
       int a = std::numeric_limits<int>::min();
@@ -70,22 +72,22 @@ namespace tenuki {
       std::cerr << depth << ": ";
       if (p.side_to_move == side::BLACK) {
         // maxノード
-        for (auto&& m : ms) {
-          int score = alphabeta(do_move(p, m), depth - 1, a, b);
+        for (int i = 0; i < length; i++) {
+          int score = alphabeta(do_move(p, moves[i]), depth - 1, a, b);
           if (score > a) {
             a = score;
-            result = m;
-            std::cerr << to_string(m, p) << "(" << score <<") ";
+            result = moves[i];
+            std::cerr << to_string(moves[i], p) << "(" << score <<") ";
           }
         }
       } else {
         // minノード
-        for (auto&& m : ms) {
-          int score = alphabeta(do_move(p, m), depth - 1, a, b);
+        for (int i = 0; i < length; i++) {
+          int score = alphabeta(do_move(p, moves[i]), depth - 1, a, b);
           if (score < b) {
             b = score;
-            result = m;
-            std::cerr << to_string(m, p) << "(" << score <<") ";
+            result = moves[i];
+            std::cerr << to_string(moves[i], p) << "(" << score <<") ";
           }
         }
       }
@@ -102,6 +104,7 @@ namespace tenuki {
   move_t ponder(const position& p) {
     move_t m = 0;
     boost::timer t;
+    //m = search(p, 5, m);
     for (int depth = 1; t.elapsed() < 1.0; depth++) {
       m = search(p, depth, m);
     }

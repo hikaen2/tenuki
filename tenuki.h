@@ -279,6 +279,6 @@ namespace tenuki {
   const std::string to_string(move_t m, const position& p);
   move_t parse_move(const std::string& str, const position& p);
   const position do_move(position p, move_t m);
-  const std::vector<move_t> legal_moves(const position& p);
+  int legal_moves(const position& p, move_t* out_moves);
 
 }
