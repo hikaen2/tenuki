@@ -110,12 +110,6 @@ namespace tenuki {
                 return rank_to >= 7 || rank_from >= 7;
             }
         }
-    }
-
-    /**
-     * legal_moves
-     */
-    int legal_moves(const position& p, move_t* out_moves) {
 
         const static vector<vector<dir_t>> DIRECTIONS {
             { dir::N },                                                                     //  0:PAWN
@@ -134,50 +128,53 @@ namespace tenuki {
             { dir::FN,  dir::FE,  dir::FW,  dir::FS,  dir::NE, dir::NW, dir::SE, dir::SW }, // 13:PROMOTED_ROOK
         };
 
-        const static int RANK_MIN[] {
+        const int RANK_MIN[] {
             // ▲歩,香,桂,銀,角,飛,金,王,と,成香,成桂,成銀,馬,龍,-,-,△歩,香,桂,銀,角,飛,金,王,と,成香,成桂,成銀,馬,龍
             2, 2, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         };
 
-        const static int RANK_MAX[] {
+        const int RANK_MAX[] {
             // ▲歩,香,桂,銀,角,飛,金,王,と,成香,成桂,成銀,馬,龍,-,-,△歩,香,桂,銀,角,飛,金,王,と,成香,成桂,成銀,馬,龍
             9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 0, 0, 8, 8, 7, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
         };
+    }
+
+    /**
+     * legal_moves
+     */
+    int legal_moves(const position& p, move_t* out_moves) {
 
         if (p.pieces_in_hand[side::BLACK][type::KING] > 0 || p.pieces_in_hand[side::WHITE][type::KING] > 0) {
             return 0;
         }
 
         bool fued[10] = {false, false, false, false, false, false, false, false, false, false}; // 0～9筋に味方の歩があるか
-        int length = 0;
+
+        // 駒を取る手を生成する
+        int length = capturel_moves(p, out_moves);
 
         // 盤上の駒を動かす
         for (int from = 11; from <= 99; from++) {
             if (!square::is_friend(p.squares[from], p.side_to_move)) {
                 continue; // fromが味方の駒でなければcontinue
             }
-
             fued[file_of(from)] |= (square::type_of(p.squares[from]) == type::PAWN);
             for (dir_t d : DIRECTIONS[square::type_of(p.squares[from])]) {
                 int v = (p.side_to_move == side::BLACK ? dir::value(d) : -dir::value(d));
-                for (int to = from + v; p.squares[to] == square::EMPTY || square::is_enemy(p.squares[to], p.side_to_move);  to += v) {
+                for (int to = from + v; p.squares[to] == square::EMPTY; to += v) {
                     if (can_promote(p.squares[from], rank_of(to), rank_of(from))) {
-                        *out_moves++ = move::create_promote(from, to);
-                        length++;
+                        out_moves[length++] = move::create_promote(from, to);
                         if (square::type_of(p.squares[from]) == type::SILVER
                             || ((rank_of(to) == 3 || rank_of(to) == 7) && (square::type_of(p.squares[from]) == type::LANCE || square::type_of(p.squares[from]) == type::KNIGHT))) {
-                            *out_moves++ = move::create(from, to); // 銀か, 3段目,7段目の香,桂なら不成も生成する
-                            length++;
+                            out_moves[length++] = move::create(from, to); // 銀か, 3段目,7段目の香,桂なら不成も生成する
                         }
                     } else if (RANK_MIN[p.squares[from]] <= rank_of(to) && rank_of(to) <= RANK_MAX[p.squares[from]]) {
-                        *out_moves++ = move::create(from, to);
-                        length++;
+                        out_moves[length++] = move::create(from, to);
                     }
-                    if (!dir::is_fly(d) || square::is_enemy(p.squares[to], p.side_to_move)) {
+                    if (!dir::is_fly(d)) {
                         break; // 飛び駒でなければここでbreak
                     }
                 }
-
             }
         }
 
@@ -186,11 +183,9 @@ namespace tenuki {
             if (p.squares[to] != square::EMPTY) {
                 continue;
             }
-
             for (type_t t = (fued[file_of(to)] ? type::LANCE : type::PAWN); t <= type::GOLD; t++) { // 歩,香,桂,銀,角,飛,金
                 if (p.pieces_in_hand[p.side_to_move][t] > 0 && rank_of(to) >= RANK_MIN[p.side_to_move << 4 | t] && RANK_MAX[p.side_to_move << 4 | t] >= rank_of(to)) {
-                    *out_moves++ = move::create_drop(t, to);
-                    length++;
+                    out_moves[length++] = move::create_drop(t, to);
                 }
             }
         }
@@ -198,4 +193,44 @@ namespace tenuki {
         return length;
     }
 
+    /**
+     * capturel_moves
+     */
+    int capturel_moves(const position& p, move_t* out_moves) {
+
+        if (p.pieces_in_hand[side::BLACK][type::KING] > 0 || p.pieces_in_hand[side::WHITE][type::KING] > 0) {
+            return 0;
+        }
+
+        int length = 0;
+
+        // 盤上の駒を動かす
+        for (int from = 11; from <= 99; from++) {
+            if (!square::is_friend(p.squares[from], p.side_to_move)) {
+                continue; // fromが味方の駒でなければcontinue
+            }
+            for (dir_t d : DIRECTIONS[square::type_of(p.squares[from])]) {
+                int v = (p.side_to_move == side::BLACK ? dir::value(d) : -dir::value(d));
+                for (int to = from + v; p.squares[to] == square::EMPTY || square::is_enemy(p.squares[to], p.side_to_move);  to += v) {
+                    if (square::is_enemy(p.squares[to], p.side_to_move)) {
+                        if (can_promote(p.squares[from], rank_of(to), rank_of(from))) {
+                            out_moves[length++] = move::create_promote(from, to);
+                            if (square::type_of(p.squares[from]) == type::SILVER
+                                || ((rank_of(to) == 3 || rank_of(to) == 7) && (square::type_of(p.squares[from]) == type::LANCE || square::type_of(p.squares[from]) == type::KNIGHT))) {
+                                out_moves[length++] = move::create(from, to); // 銀か, 3段目,7段目の香,桂なら不成も生成する
+                            }
+                        } else if (RANK_MIN[p.squares[from]] <= rank_of(to) && rank_of(to) <= RANK_MAX[p.squares[from]]) {
+                            out_moves[length++] = move::create(from, to);
+                        }
+                        break;
+                    }
+                    if (!dir::is_fly(d)) {
+                        break; // 飛び駒でなければここでbreak
+                    }
+                }
+            }
+        }
+
+        return length;
+    }
 }

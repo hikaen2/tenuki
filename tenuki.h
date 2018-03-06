@@ -29,30 +29,31 @@ namespace tenuki {
      * 手番
      */
     namespace side {
-        const side_t BLACK = 0; ///< 先手
-        const side_t WHITE = 1; ///< 後手
+        const side_t BLACK = 0; // 先手
+        const side_t WHITE = 1; // 後手
     }
 
     /**
      * 駒の種類
+     * 8を足すと成る. 5以下が成れる.
      */
     namespace type {
-        const type_t PAWN            = 0;
-        const type_t LANCE           = 1;
-        const type_t KNIGHT          = 2;
-        const type_t SILVER          = 3;
-        const type_t BISHOP          = 4;
-        const type_t ROOK            = 5;
-        const type_t GOLD            = 6;
-        const type_t KING            = 7;
-        const type_t PROMOTED_PAWN   = 8;
-        const type_t PROMOTED_LANCE  = 9;
-        const type_t PROMOTED_KNIGHT = 10;
-        const type_t PROMOTED_SILVER = 11;
-        const type_t PROMOTED_BISHOP = 12;
-        const type_t PROMOTED_ROOK   = 13;
-        const type_t EMPTY           = 14;
-        const type_t WALL            = 15;
+        const type_t PAWN            = 0;  // 歩
+        const type_t LANCE           = 1;  // 香
+        const type_t KNIGHT          = 2;  // 桂
+        const type_t SILVER          = 3;  // 銀
+        const type_t BISHOP          = 4;  // 角
+        const type_t ROOK            = 5;  // 飛
+        const type_t GOLD            = 6;  // 金
+        const type_t KING            = 7;  // 王
+        const type_t PROMOTED_PAWN   = 8;  // と
+        const type_t PROMOTED_LANCE  = 9;  // 成香
+        const type_t PROMOTED_KNIGHT = 10; // 成桂
+        const type_t PROMOTED_SILVER = 11; // 成銀
+        const type_t PROMOTED_BISHOP = 12; // 馬
+        const type_t PROMOTED_ROOK   = 13; // 龍
+        const type_t EMPTY           = 14; // 空
+        const type_t WALL            = 15; // 壁
     }
 
     /**
@@ -65,37 +66,36 @@ namespace tenuki {
      */
     namespace square {
         const square_t W                 = 0b00010000;
-
-        const square_t B_PAWN            = type::PAWN;
-        const square_t B_LANCE           = type::LANCE;
-        const square_t B_KNIGHT          = type::KNIGHT;
-        const square_t B_SILVER          = type::SILVER;
-        const square_t B_BISHOP          = type::BISHOP;
-        const square_t B_ROOK            = type::ROOK;
-        const square_t B_GOLD            = type::GOLD;
-        const square_t B_KING            = type::KING;
-        const square_t B_PROMOTED_PAWN   = type::PROMOTED_PAWN;
-        const square_t B_PROMOTED_LANCE  = type::PROMOTED_LANCE;
-        const square_t B_PROMOTED_KNIGHT = type::PROMOTED_KNIGHT;
-        const square_t B_PROMOTED_SILVER = type::PROMOTED_SILVER;
-        const square_t B_PROMOTED_BISHOP = type::PROMOTED_BISHOP;
-        const square_t B_PROMOTED_ROOK   = type::PROMOTED_ROOK;
-        const square_t EMPTY             = type::EMPTY;
-        const square_t WALL              = type::WALL;
-        const square_t W_PAWN            = W | type::PAWN;
-        const square_t W_LANCE           = W | type::LANCE;
-        const square_t W_KNIGHT          = W | type::KNIGHT;
-        const square_t W_SILVER          = W | type::SILVER;
-        const square_t W_BISHOP          = W | type::BISHOP;
-        const square_t W_ROOK            = W | type::ROOK;
-        const square_t W_GOLD            = W | type::GOLD;
-        const square_t W_KING            = W | type::KING;
-        const square_t W_PROMOTED_PAWN   = W | type::PROMOTED_PAWN;
-        const square_t W_PROMOTED_LANCE  = W | type::PROMOTED_LANCE;
-        const square_t W_PROMOTED_KNIGHT = W | type::PROMOTED_KNIGHT;
-        const square_t W_PROMOTED_SILVER = W | type::PROMOTED_SILVER;
-        const square_t W_PROMOTED_BISHOP = W | type::PROMOTED_BISHOP;
-        const square_t W_PROMOTED_ROOK   = W | type::PROMOTED_ROOK;
+        const square_t B_PAWN            = 0;
+        const square_t B_LANCE           = 1;
+        const square_t B_KNIGHT          = 2;
+        const square_t B_SILVER          = 3;
+        const square_t B_BISHOP          = 4;
+        const square_t B_ROOK            = 5;
+        const square_t B_GOLD            = 6;
+        const square_t B_KING            = 7;
+        const square_t B_PROMOTED_PAWN   = 8;
+        const square_t B_PROMOTED_LANCE  = 9;
+        const square_t B_PROMOTED_KNIGHT = 10;
+        const square_t B_PROMOTED_SILVER = 11;
+        const square_t B_PROMOTED_BISHOP = 12;
+        const square_t B_PROMOTED_ROOK   = 13;
+        const square_t EMPTY             = 14;
+        const square_t WALL              = 15;
+        const square_t W_PAWN            = W | 0;
+        const square_t W_LANCE           = W | 1;
+        const square_t W_KNIGHT          = W | 2;
+        const square_t W_SILVER          = W | 3;
+        const square_t W_BISHOP          = W | 4;
+        const square_t W_ROOK            = W | 5;
+        const square_t W_GOLD            = W | 6;
+        const square_t W_KING            = W | 7;
+        const square_t W_PROMOTED_PAWN   = W | 8;
+        const square_t W_PROMOTED_LANCE  = W | 9;
+        const square_t W_PROMOTED_KNIGHT = W | 10;
+        const square_t W_PROMOTED_SILVER = W | 11;
+        const square_t W_PROMOTED_BISHOP = W | 12;
+        const square_t W_PROMOTED_ROOK   = W | 13;
 
         inline bool is_black(square_t sq) {
             return sq <= square::B_PROMOTED_ROOK;
@@ -115,10 +115,10 @@ namespace tenuki {
 
         inline type_t type_of(square_t sq) {
             assert(sq != square::EMPTY);
-            return sq & 0b1111;
+            return sq & 0b00001111;
         }
 
-        inline type_t promote(square_t sq) {
+        inline square_t promote(square_t sq) {
             return sq | 0b00001000;
         }
 
@@ -280,5 +280,5 @@ namespace tenuki {
     move_t parse_move(const std::string& str, const position& p);
     const position do_move(position p, move_t m);
     int legal_moves(const position& p, move_t* out_moves);
-
+    int capturel_moves(const position& p, move_t* out_moves);
 }
