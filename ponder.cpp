@@ -3,34 +3,43 @@
 namespace tenuki {
 
     namespace {
-        move_t search(const position& p, int depth, move_t prev);
+        int search(const position& p, int depth, move_t prev, move_t& out_move);
         int alphabeta(const position& p, int depth, int a, int b);
         int quies(const position& p, int depth, int a, int b);
     }
 
     move_t ponder(const position& p) {
-        move_t m = 0;
         boost::timer t;
-        //m = search(p, 5, m);
+        std::vector<std::tuple<move_t, int>> moves;
+
+        // move_t m = 0;
+        // return search(p, 5, m, m);
+
+        move_t m = 0;
         for (int depth = 1; t.elapsed() < 1.0; depth++) {
-            m = search(p, depth, m);
+            int score = search(p, depth, m, m);
+            moves.push_back(std::make_tuple(m, score));
         }
-        return m;
+        for (int i = moves.size() - 1; i >= 0; i--) {
+            if ((p.side_to_move == side::BLACK) ? std::get<1>(moves[i]) > -15000 : std::get<1>(moves[i]) < 15000) {
+                return std::get<0>(moves[i]);
+            }
+        }
+        return std::get<0>(moves[0]);
     }
 
     namespace {
 
         std::random_device seed_gen;
 
-        move_t search(const position& p, int depth, move_t prev) {
+        int search(const position& p, int depth, move_t prev, move_t& out_move) {
 
             static std::mt19937 gen(seed_gen());
 
-            move_t result = 0;
             move_t moves[593];
             int length = legal_moves(p, moves);
             if (length == 0) {
-                return result;
+                return 0;
             }
             std::shuffle(&moves[0], &moves[length - 1], gen);
             if (prev != 0) {
@@ -46,7 +55,7 @@ namespace tenuki {
                     int score = alphabeta(do_move(p, moves[i]), depth - 1, a, b);
                     if (score > a) {
                         a = score;
-                        result = moves[i];
+                        out_move = moves[i];
                         std::cerr << to_string(moves[i], p) << "(" << score <<") ";
                     }
                 }
@@ -56,13 +65,13 @@ namespace tenuki {
                     int score = alphabeta(do_move(p, moves[i]), depth - 1, a, b);
                     if (score < b) {
                         b = score;
-                        result = moves[i];
+                        out_move = moves[i];
                         std::cerr << to_string(moves[i], p) << "(" << score <<") ";
                     }
                 }
             }
             std::cerr << "\n";
-            return result;
+            return (p.side_to_move == side::BLACK) ? a : b;
         }
 
         /**
@@ -107,6 +116,7 @@ namespace tenuki {
         }
 
         int quies(const position& p, int depth, int a, int b) {
+
             int standpat = static_value(p);
             if (depth == 0) {
                 return standpat;

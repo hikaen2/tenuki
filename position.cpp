@@ -146,6 +146,13 @@ namespace tenuki {
             -87, -235, -254, -371, -571, -647, -447, -9999, -530, -482, -500, -489, -832, -955,
         };
 
+        if (p.pieces_in_hand[side::BLACK][type::KING] > 0) {
+            return 15000;
+        }
+        if (p.pieces_in_hand[side::WHITE][type::KING] > 0) {
+            return -15000;
+        }
+
         int16_t result = 0;
         for (int i = 11; i <= 99; i++) {
             result += SCORE[p.squares[i]];

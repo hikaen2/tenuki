@@ -11,6 +11,7 @@
 #include <random>
 #include <regex>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 #include <boost/algorithm/string.hpp>
